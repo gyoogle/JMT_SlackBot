@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, make_response, render_template
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
-slack_token = "xoxb-503818135714-507351131587-HqntZyeu1Nnta0lwSLsBarqC"
+slack_token = "xoxb-503818135714-507351131587-qX7wlR86NdZy8vGiERZB7MkJ"
 slack_client_id = "503818135714.507284889508"
 slack_client_secret = "5629395b663813a6bc8156667fcdb94b"
 slack_verification = "XghV8wu7By7jQRBIHzHlmt1b"
@@ -53,7 +53,9 @@ def _crawl_naver_keywords(text):
     location = {
         '서울': "g294197-Seoul.html",
         '부산': "g297884-Busan.html",
-        '제주': "g297885-Jeju_Jeju_Island.html"
+        '제주': "g297885-Jeju_Jeju_Island.html",
+        '대전': "g297887-Daejeon.html",
+        '전주': "g1143545-Jeonju_Jeollabuk_do.html"
     }
     name = []
     cuisines = []
@@ -83,9 +85,14 @@ def _crawl_naver_keywords(text):
                                 urlLank = "https://www.tripadvisor.co.kr"
                                 urlLank += link.attrs['href']
                                 urlList.append(urlLank)
-
             for i in range(10):
-                keywords.append(str(i + 1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ") \n" + urlList[i])
+                print(len(cuisines[i]))
+                if len(cuisines[i]) == 0:
+                    keywords.append(str(i + 1) + "위 : " + name[i]  +"\n" + urlList[i])
+                elif len(cuisines[i]) == 1:
+                    keywords.append(str(i + 1) + "위 : " + name[i] + " (#" + cuisines[i][0]+ ")\n" + urlList[i])
+                else :
+                    keywords.append(str(i + 1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")\n"+urlList[i])
 
         keywords = keywords[:11]
 
