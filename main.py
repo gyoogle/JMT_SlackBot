@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, make_response, render_template
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
-slack_token = "xoxb-503818135714-507351131587-GCqN6TIi3PpANOc8TBWOLjWz"
+slack_token = "xoxb-503818135714-507351131587-HqntZyeu1Nnta0lwSLsBarqC"
 slack_client_id = "503818135714.507284889508"
 slack_client_secret = "5629395b663813a6bc8156667fcdb94b"
 slack_verification = "XghV8wu7By7jQRBIHzHlmt1b"
@@ -38,9 +38,10 @@ def get_answer(text, user_key):
 
     data_receive = res.json()
     result = {
-        "speech" : data_receive['result']['fulfillment']['speech'],
-        "intent" : data_receive['result']['metadata']['intentName']
+        "speech" : data_receive['result']['fulfillment']['speech']
+        #"intent" : data_receive['result']['metadata']['intentName']
     }
+    print(result)
     return result
 
 # 크롤링 함수 구현하기
@@ -49,65 +50,49 @@ def _crawl_naver_keywords(text):
 
     url = "https://www.tripadvisor.co.kr/Restaurants-"
 
-    # location = {
-    #     'seoul': "https://www.tripadvisor.co.kr/Restaurants-g294197-Seoul.html",
-    #     'busan': "https://www.tripadvisor.co.kr/Restaurants-g297884-Busan.html",
-    #     'jeju': "https://www.tripadvisor.co.kr/Restaurants-g297885-Jeju_Jeju_Island.html"
-    # }
-
-    keywords = ["[" + text + " 맛집 TOP 10]"]
-
+    location = {
+        '서울': "g294197-Seoul.html",
+        '부산': "g297884-Busan.html",
+        '제주': "g297885-Jeju_Jeju_Island.html"
+    }
     name = []
     cuisines = []
-
+    keywords = []
     # 여기에 함수를 구현해봅시다.
-    if text.find('서울') != -1:
-        sourcecode = urllib.request.urlopen(url + 'g294197-Seoul.html').read()
-        soup = BeautifulSoup(sourcecode, "html.parser")
+    print(len(text))
+    if len(text) == 2:
+        if text in location.keys():
+            keywords = ["[★" + text + " 맛집 TOP 10★]"]
+            url += location[text]
+            urlList = []
+            sourcecode = urllib.request.urlopen(url).read()
+            soup = BeautifulSoup(sourcecode, "html.parser")
 
-        for name_text in soup.find_all("a", class_="property_title"):
-            name.append(name_text.get_text().strip('\n'))
+            for name_text in soup.find_all("a", class_="property_title"):
+                name.append(name_text.get_text().strip('\n'))
 
-        for finance_title in soup.find_all("div", class_="cuisines"):
-            cuisines.append(
-                finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
+            for finance_title in soup.find_all("div", class_="cuisines"):
+                cuisines.append(
+                    finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
 
-        for i in range(10):
-            keywords.append(str(i+1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")")
+            for link in soup.findAll("a"):
+                if 'href' in link.attrs:
+                    if 'class' in link.attrs:
+                        for c in link.attrs['class']:
+                            if c == 'property_title':
+                                urlLank = "https://www.tripadvisor.co.kr"
+                                urlLank += link.attrs['href']
+                                urlList.append(urlLank)
 
-    elif text.find('부산') != -1:
-        sourcecode = urllib.request.urlopen(url + 'g297884-Busan.html').read()
-        soup = BeautifulSoup(sourcecode, "html.parser")
+            for i in range(10):
+                keywords.append(str(i + 1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ") \n" + urlList[i])
 
-        for name_text in soup.find_all("a", class_="property_title"):
-            name.append(name_text.get_text().strip('\n'))
+        keywords = keywords[:11]
 
-        for finance_title in soup.find_all("div", class_="cuisines"):
-            cuisines.append(
-                finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
-
-        for i in range(10):
-            keywords.append(str(i+1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")")
-
-    elif text.find('제주') != -1:
-        sourcecode = urllib.request.urlopen(url + 'g297885-Jeju_Jeju_Island.html').read()
-        soup = BeautifulSoup(sourcecode, "html.parser")
-
-        for name_text in soup.find_all("a", class_="property_title"):
-            name.append(name_text.get_text().strip('\n'))
-
-        for finance_title in soup.find_all("div", class_="cuisines"):
-            cuisines.append(
-                finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
-
-        for i in range(10):
-            keywords.append(str(i+1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")")
-
-    keywords = keywords[:11]
-
+    else:
+        keywords.append("모르는 정보가 들어왔어요")
     # 한글 지원을 위해 앞에 unicode u를 붙혀준다.
     return u'\n'.join(keywords)
-
 
 # 이벤트 핸들하는 함수
 def _event_handler(event_type, slack_event):
@@ -120,6 +105,7 @@ def _event_handler(event_type, slack_event):
         get_data = get_answer(text, 'session')['speech']
 
         keywords = _crawl_naver_keywords(get_data)
+        print(keywords)
 
         sc.api_call(
             "chat.postMessage",
@@ -137,10 +123,6 @@ def _event_handler(event_type, slack_event):
 
 
 @app.route("/listening", methods=["GET", "POST"])
-def webhook():
-    content = request.args.get('content')
-    userid = 'session'
-    return get_answer(content, userid)
 
 def hears():
     slack_event = json.loads(request.data)
