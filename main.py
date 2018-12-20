@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, make_response, render_template
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
-slack_token = "xoxb-503818135714-507351131587-cXkr4aeTTCntINu8tOWkFzP2"
+slack_token = "xoxb-503818135714-507351131587-GCqN6TIi3PpANOc8TBWOLjWz"
 slack_client_id = "503818135714.507284889508"
 slack_client_secret = "5629395b663813a6bc8156667fcdb94b"
 slack_verification = "XghV8wu7By7jQRBIHzHlmt1b"
@@ -45,32 +45,65 @@ def get_answer(text, user_key):
 
 # 크롤링 함수 구현하기
 def _crawl_naver_keywords(text):
+    # 여기에 함수를 구현해봅시다.
+
+    url = "https://www.tripadvisor.co.kr/Restaurants-"
+
+    # location = {
+    #     'seoul': "https://www.tripadvisor.co.kr/Restaurants-g294197-Seoul.html",
+    #     'busan': "https://www.tripadvisor.co.kr/Restaurants-g297884-Busan.html",
+    #     'jeju': "https://www.tripadvisor.co.kr/Restaurants-g297885-Jeju_Jeju_Island.html"
+    # }
+
+    keywords = ["[" + text + " 맛집 TOP 10]"]
+
+    name = []
+    cuisines = []
 
     # 여기에 함수를 구현해봅시다.
-    keywords = ["Bugs 실시간 음악 차트 Top 10\n"]
-    rankings = []
-    titles = []
-    singers = []
-    print(text)
-    if text.find('music') != -1:
-        sourcecode = urllib.request.urlopen('https://music.bugs.co.kr/chart').read()
+    if text.find('서울') != -1:
+        sourcecode = urllib.request.urlopen(url + 'g294197-Seoul.html').read()
         soup = BeautifulSoup(sourcecode, "html.parser")
 
-        for bugs_text in soup.find_all("strong"):
-            rankings.append(bugs_text.get_text())
-        rankings = rankings[5:15]
-        print(rankings)
-        for bugs_text in soup.find_all("p", class_="title"):
-            titles.append(bugs_text.get_text().strip('\n'))
-        titles = titles[0:10]
+        for name_text in soup.find_all("a", class_="property_title"):
+            name.append(name_text.get_text().strip('\n'))
 
-        for bugs_text in soup.find_all("p", class_="artist"):
-            singers.append(bugs_text.get_text().strip('\n'))
-        singers = singers[0:10]
+        for finance_title in soup.find_all("div", class_="cuisines"):
+            cuisines.append(
+                finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
 
         for i in range(10):
-            keywords.append(rankings[i] + "위 : " + titles[i] + "/" + singers[i])
-            # print(rankings[i] + titles[i] + singers[i])
+            keywords.append(str(i+1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")")
+
+    elif text.find('부산') != -1:
+        sourcecode = urllib.request.urlopen(url + 'g297884-Busan.html').read()
+        soup = BeautifulSoup(sourcecode, "html.parser")
+
+        for name_text in soup.find_all("a", class_="property_title"):
+            name.append(name_text.get_text().strip('\n'))
+
+        for finance_title in soup.find_all("div", class_="cuisines"):
+            cuisines.append(
+                finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
+
+        for i in range(10):
+            keywords.append(str(i+1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")")
+
+    elif text.find('제주') != -1:
+        sourcecode = urllib.request.urlopen(url + 'g297885-Jeju_Jeju_Island.html').read()
+        soup = BeautifulSoup(sourcecode, "html.parser")
+
+        for name_text in soup.find_all("a", class_="property_title"):
+            name.append(name_text.get_text().strip('\n'))
+
+        for finance_title in soup.find_all("div", class_="cuisines"):
+            cuisines.append(
+                finance_title.get_text().replace('₩', '').replace(' ', '').replace('-', '').strip('\n').split('\n'))
+
+        for i in range(10):
+            keywords.append(str(i+1) + "위 : " + name[i] + " (#" + cuisines[i][0] + ", #" + cuisines[i][1] + ")")
+
+    keywords = keywords[:11]
 
     # 한글 지원을 위해 앞에 unicode u를 붙혀준다.
     return u'\n'.join(keywords)
@@ -87,6 +120,7 @@ def _event_handler(event_type, slack_event):
         get_data = get_answer(text, 'session')['speech']
 
         keywords = _crawl_naver_keywords(get_data)
+
         sc.api_call(
             "chat.postMessage",
             channel=channel,
@@ -136,4 +170,4 @@ def index():
 
 
 if __name__ == '__main__':
-    app.run('0.0.0.0', port=5000)
+    app.run('0.0.0.0', port=8080)
